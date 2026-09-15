@@ -19,8 +19,8 @@ env/
 venv/
 ENV/
 
-# Streamlit local credentials
-.streamlit/
+# Streamlit local credentials & secrets
+.streamlit/secrets.toml
 
 # OS and IDE files
 .DS_Store
