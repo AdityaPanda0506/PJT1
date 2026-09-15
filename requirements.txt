@@ -3,6 +3,7 @@ streamlit>=1.30.0
 torch
 transformers>=4.35.0
 spacy>=3.7.0
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 pandas>=2.0.0
 numpy>=1.24.0
 scipy>=1.10.0

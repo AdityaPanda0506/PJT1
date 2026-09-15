@@ -319,16 +319,11 @@ def compute_signed_switch_distance(lang_tags: List[str], max_dist: int = 16) -> 
 
 
 def get_spacy_model(disable=None):
-    """Safely loads or auto-downloads en_core_web_sm model."""
+    """Safely loads en_core_web_sm model or falls back to blank en model with zero runtime downloads."""
     try:
         return spacy.load("en_core_web_sm", disable=disable or [])
     except Exception:
-        try:
-            import spacy.cli
-            spacy.cli.download("en_core_web_sm")
-            return spacy.load("en_core_web_sm", disable=disable or [])
-        except Exception:
-            return spacy.blank("en")
+        return spacy.blank("en")
 
 
 class FastGraphBuilder:
