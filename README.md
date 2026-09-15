@@ -123,12 +123,18 @@ flowchart TD
 ### Phase 1 & 2: Multilingual Backbone & Switch-Point Gated Self-Attention (SP-GSA)
 1. **Input Encoding:** Token representations $H \in \mathbb{R}^{N \times d}$ are generated via fine-tuned `xlm-roberta-base`.
 2. **Switch Distance Formulation:** For each token at position $i$, the signed distance to the nearest language switch point is computed:
-   $$d_{\mathrm{switch}}(i) \in [-16, +16]$$
+```math
+d_{\mathrm{switch}}(i) \in [-16, +16]
+```
 3. **Switch Positional Embeddings:** $E_{\mathrm{switch}} = \mathrm{Embedding}(d_{\mathrm{switch}}(i)) \in \mathbb{R}^{N \times d}$.
 4. **SP-GSA Dynamic Soft Gating:**
-   $$\mathbf{G}_{\mathrm{switch}} = \sigma\left(\mathbf{W}_g [H \mathbin{\Vert} E_{\mathrm{switch}}] + \mathbf{b}_g\right)$$
-   $$\hat{H} = \mathrm{LayerNorm}\left(\mathbf{G}_{\mathrm{switch}} \odot H + H\right)$$
-   *Impact:* Suppresses cross-lingual attention bleeding while preserving syntactic coherence across Hindi-English boundaries.
+```math
+\mathbf{G}_{\mathrm{switch}} = \sigma\left(\mathbf{W}_{g} [H \parallel E_{\mathrm{switch}}] + \mathbf{b}_{g}\right)
+```
+```math
+\hat{H} = \mathrm{LayerNorm}\left(\mathbf{G}_{\mathrm{switch}} \odot H + H\right)
+```
+*Impact:* Suppresses cross-lingual attention bleeding while preserving syntactic coherence across Hindi-English boundaries.
 
 ---
 
@@ -136,7 +142,9 @@ flowchart TD
 
 #### Branch A: Biaffine Span Boundary Extractor (2D Bilinear Grid)
 - Aspect and opinion spans are identified using dual MLPs ($\mathrm{MLP}_{\mathrm{start}}, \mathrm{MLP}_{\mathrm{end}}$) and a 2D bilinear scoring grid:
-  $$S(i, j) = h_i^{\top} \mathbf{W}_{\mathrm{biaffine}} h_j + \mathbf{U} [h_i \mathbin{\Vert} h_j] + b$$
+```math
+S(i, j) = h_{i}^{\top} \mathbf{W}_{\mathrm{biaffine}} h_{j} + \mathbf{U} [h_{i} \parallel h_{j}] + b
+```
 - Span representations $h_{\mathrm{aspect}}$ and $h_{\mathrm{opinion}}$ are pooled via self-attentive span reduction.
 
 #### Branch B: Heterogeneous Neuro-Symbolic Graph (H-NSG) & RGAT
@@ -147,26 +155,42 @@ A multi-relational graph $\mathcal{G} = (\mathcal{V}, \mathcal{E}, \mathcal{R})$
 4. $\mathcal{R}_4$ **Aspect-Opinion Alignment:** Direct cross-span association edges connecting candidate aspect and opinion terms.
 
 - **Symbolic Prior Anchor Injection:** Each node feature is initialized by concatenating contextual embeddings with symbolic NRC-VAD psycholinguistic priors:
-  $$x_i^{(0)} = [\hat{h}_i \mathbin{\Vert} e_{\mathrm{LID}}(i) \mathbin{\Vert} v_i^{\mathrm{NRC}} \mathbin{\Vert} a_i^{\mathrm{NRC}} \mathbin{\Vert} d_i^{\mathrm{NRC}}]$$
+```math
+x_{i}^{(0)} = [\hat{h}_{i} \parallel e_{\mathrm{LID}}(i) \parallel v_{i}^{\mathrm{NRC}} \parallel a_{i}^{\mathrm{NRC}} \parallel d_{i}^{\mathrm{NRC}}]
+```
 - **Relational Graph Attention (RGAT) Message Passing:**
-  $$h_i^{(l+1)} = \sigma \left( \sum_{r \in \mathcal{R}} \sum_{j \in \mathcal{N}_i^r} \alpha_{ij}^r \mathbf{W}_r^{(l)} h_j^{(l)} \right)$$
-  $$\alpha_{ij}^r = \frac{\exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}_r^{\top} [\mathbf{W}_r h_i \mathbin{\Vert} \mathbf{W}_r h_j]\right)\right)}{\sum_{k \in \mathcal{N}_i^r} \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}_r^{\top} [\mathbf{W}_r h_i \mathbin{\Vert} \mathbf{W}_r h_k]\right)\right)}$$
+```math
+h_{i}^{(l+1)} = \sigma \left( \sum_{r \in \mathcal{R}} \sum_{j \in \mathcal{N}_{i}^{r}} \alpha_{ij}^{r} \mathbf{W}_{r}^{(l)} h_{j}^{(l)} \right)
+```
+```math
+\alpha_{ij}^{r} = \frac{\exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}_{r}^{\top} [\mathbf{W}_{r} h_{i} \parallel \mathbf{W}_{r} h_{j}]\right)\right)}{\sum_{k \in \mathcal{N}_{i}^{r}} \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}_{r}^{\top} [\mathbf{W}_{r} h_{i} \parallel \mathbf{W}_{r} h_{k}]\right)\right)}
+```
 
 ---
 
 ### Phase 4: Aspect-Guided Mutual Cross-Attention Fusion
 To ground graph structural knowledge directly into the aspect-opinion pair, an aspect-guided cross-attention layer performs mutual alignment:
-$$Q = \mathbf{W}_Q h_{\mathrm{aspect}}, \quad K = \mathbf{W}_K H_{\mathrm{RGAT}}, \quad V = \mathbf{W}_V H_{\mathrm{RGAT}}$$
-$$h_{\mathrm{graph}} = \mathrm{Softmax}\left(\frac{Q K^{\top}}{\sqrt{d}}\right) V$$
+```math
+Q = \mathbf{W}_{Q} h_{\mathrm{aspect}}, \quad K = \mathbf{W}_{K} H_{\mathrm{RGAT}}, \quad V = \mathbf{W}_{V} H_{\mathrm{RGAT}}
+```
+```math
+h_{\mathrm{graph}} = \mathrm{Softmax}\left(\frac{Q K^{\top}}{\sqrt{d}}\right) V
+```
 The final fused latent representation $Z \in \mathbb{R}^{3d}$ combines all three dimensions:
-$$Z = [h_{\mathrm{aspect}} \mathbin{\Vert} h_{\mathrm{opinion}} \mathbin{\Vert} h_{\mathrm{graph}}]$$
+```math
+Z = [h_{\mathrm{aspect}} \parallel h_{\mathrm{opinion}} \parallel h_{\mathrm{graph}}]
+```
 
 ---
 
 ### Phase 5: Parallel Dual Continuous Regression Heads
 Valence and Arousal are regressed in parallel through multi-layer perceptrons with GELU activations, layer normalization, dropout, and bounded sigmoid scaling:
-$$\hat{V} = \sigma\left(\mathbf{W}_{V,2} \cdot \text{GELU}\left(\mathbf{W}_{V,1} Z + b_{V,1}\right) + b_{V,2}\right) \in [0.000, 1.000]$$
-$$\hat{A} = \sigma\left(\mathbf{W}_{A,2} \cdot \text{GELU}\left(\mathbf{W}_{A,1} Z + b_{A,1}\right) + b_{A,2}\right) \in [0.000, 1.000]$$
+```math
+\hat{V} = \sigma\left(\mathbf{W}_{V,2} \cdot \mathrm{GELU}\left(\mathbf{W}_{V,1} Z + b_{V,1}\right) + b_{V,2}\right) \in [0.000, 1.000]
+```
+```math
+\hat{A} = \sigma\left(\mathbf{W}_{A,2} \cdot \mathrm{GELU}\left(\mathbf{W}_{A,1} Z + b_{A,1}\right) + b_{A,2}\right) \in [0.000, 1.000]
+```
 
 ---
 
@@ -183,9 +207,15 @@ Continuous $(\hat{V}, \hat{A})$ coordinates are mapped into **Russell's 2D Circu
 | **Neutral Zone** | $\approx 0.5$ | $\approx 0.5$ | *Indifferent, Objective, Balanced, Neutral* | `#94A3B8` (Slate Gray) |
 
 ### Radial Intensity & Polar Coordinates:
-$$\text{Distance from Center } r = \sqrt{(\hat{V} - 0.5)^2 + (\hat{A} - 0.5)^2}$$
-$$\text{Affective Angle } \theta = \text{atan2}(\hat{A} - 0.5, \hat{V} - 0.5)$$
-$$\text{Affective Intensity } = \min(1.0, 2 \cdot r) \times 100\%$$
+```math
+r = \sqrt{(\hat{V} - 0.5)^2 + (\hat{A} - 0.5)^2}
+```
+```math
+\theta = \mathrm{atan2}(\hat{A} - 0.5, \hat{V} - 0.5)
+```
+```math
+\text{Affective Intensity} = \min(1.0, 2 \cdot r) \times 100\%
+```
 
 ---
 
@@ -193,11 +223,17 @@ $$\text{Affective Intensity } = \min(1.0, 2 \cdot r) \times 100\%$$
 
 NSSG-DimNet is trained with a composite loss objective combining **Lin's Concordance Correlation Coefficient (CCC)** loss (which penalizes shifts in both scale and location) and **Smooth L1 (Huber)** loss:
 
-$$\mathcal{L}_{\text{total}} = \lambda_1 \mathcal{L}_{\text{CCC}}(V, \hat{V}) + \lambda_2 \mathcal{L}_{\text{CCC}}(A, \hat{A}) + \lambda_3 \mathcal{L}_{\text{SmoothL1}}(V, \hat{V}) + \lambda_4 \mathcal{L}_{\text{SmoothL1}}(A, \hat{A}) + \lambda_5 \mathcal{L}_{\text{span}}$$
+```math
+\mathcal{L}_{\mathrm{total}} = \lambda_1 \mathcal{L}_{\mathrm{CCC}}(V, \hat{V}) + \lambda_2 \mathcal{L}_{\mathrm{CCC}}(A, \hat{A}) + \lambda_3 \mathcal{L}_{\mathrm{SmoothL1}}(V, \hat{V}) + \lambda_4 \mathcal{L}_{\mathrm{SmoothL1}}(A, \hat{A}) + \lambda_5 \mathcal{L}_{\mathrm{span}}
+```
 
 Where CCC Loss is defined as:
-$$\text{CCC}(y, \hat{y}) = \frac{2 \rho \sigma_y \sigma_{\hat{y}}}{\sigma_y^2 + \sigma_{\hat{y}}^2 + (\mu_y - \mu_{\hat{y}})^2}$$
-$$\mathcal{L}_{\text{CCC}} = 1 - \text{CCC}(y, \hat{y})$$
+```math
+\mathrm{CCC}(y, \hat{y}) = \frac{2 \rho \sigma_y \sigma_{\hat{y}}}{\sigma_y^2 + \sigma_{\hat{y}}^2 + (\mu_y - \mu_{\hat{y}})^2}
+```
+```math
+\mathcal{L}_{\mathrm{CCC}} = 1 - \mathrm{CCC}(y, \hat{y})
+```
 
 ---
 
