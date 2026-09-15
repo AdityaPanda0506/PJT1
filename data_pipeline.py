@@ -318,13 +318,23 @@ def compute_signed_switch_distance(lang_tags: List[str], max_dist: int = 16) -> 
     return d_switch
 
 
+def get_spacy_model(disable=None):
+    """Safely loads or auto-downloads en_core_web_sm model."""
+    try:
+        return spacy.load("en_core_web_sm", disable=disable or [])
+    except Exception:
+        try:
+            import spacy.cli
+            spacy.cli.download("en_core_web_sm")
+            return spacy.load("en_core_web_sm", disable=disable or [])
+        except Exception:
+            return spacy.blank("en")
+
+
 class FastGraphBuilder:
     """Optimized Graph Builder for syntactic, semantic, code-switch, and aspect-opinion graphs."""
     def __init__(self):
-        try:
-            self.nlp = spacy.load("en_core_web_sm", disable=["ner", "textcat", "lemmatizer"])
-        except Exception:
-            self.nlp = spacy.blank("en")
+        self.nlp = get_spacy_model(disable=["ner", "textcat", "lemmatizer"])
 
     def build_graphs(
         self,
@@ -341,7 +351,7 @@ class FastGraphBuilder:
         A_ao = np.zeros((n, n), dtype=np.float32)
 
         # Fast Syntactic dependency graph
-        if n > 0:
+        if n > 0 and self.nlp.has_pipe("parser"):
             doc = self.nlp(" ".join(tokens))
             for token in doc:
                 h_idx, d_idx = token.head.i, token.i
@@ -655,10 +665,7 @@ class HinglishAspectOpinionExtractor:
     Extracts all (aspect, opinion) pairs present in a multi-aspect sentence.
     """
     def __init__(self, lexicon_engine: Optional[MasterLexiconEngine] = None):
-        try:
-            self.nlp = spacy.load("en_core_web_sm", disable=["textcat"])
-        except Exception:
-            self.nlp = spacy.blank("en")
+        self.nlp = get_spacy_model(disable=["textcat"])
         self.lexicon_engine = lexicon_engine
 
         # Common Hinglish discourse connectives and stop particles
@@ -691,20 +698,24 @@ class HinglishAspectOpinionExtractor:
             
             # Find candidate aspect: prefer NOUN/PROPN or first content noun chunk
             best_aspect = None
-            for token in doc:
-                if token.pos_ in ["NOUN", "PROPN"] or token.dep_ in ["nsubj", "dobj"]:
-                    clean_t = re.sub(r"[^\w]", "", token.text.lower()).strip()
-                    if clean_t not in stop_particles and len(clean_t) > 1:
-                        best_aspect = token.text
-                        break
+            if self.nlp.has_pipe("parser") or self.nlp.has_pipe("tagger"):
+                for token in doc:
+                    if token.pos_ in ["NOUN", "PROPN"] or token.dep_ in ["nsubj", "dobj"]:
+                        clean_t = re.sub(r"[^\w]", "", token.text.lower()).strip()
+                        if clean_t not in stop_particles and len(clean_t) > 1:
+                            best_aspect = token.text
+                            break
 
-            if not best_aspect:
-                for chunk in doc.noun_chunks:
-                    clean_chunk = re.sub(r"[^\w\s]", "", chunk.text.lower()).strip()
-                    chunk_words = [w for w in clean_chunk.split() if w not in stop_particles and len(w) > 1]
-                    if chunk_words:
-                        best_aspect = chunk_words[0]
-                        break
+            if not best_aspect and self.nlp.has_pipe("parser"):
+                try:
+                    for chunk in doc.noun_chunks:
+                        clean_chunk = re.sub(r"[^\w\s]", "", chunk.text.lower()).strip()
+                        chunk_words = [w for w in clean_chunk.split() if w not in stop_particles and len(w) > 1]
+                        if chunk_words:
+                            best_aspect = chunk_words[0]
+                            break
+                except Exception:
+                    pass
 
             if not best_aspect:
                 for w in words:
