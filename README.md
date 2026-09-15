@@ -123,11 +123,11 @@ flowchart TD
 ### Phase 1 & 2: Multilingual Backbone & Switch-Point Gated Self-Attention (SP-GSA)
 1. **Input Encoding:** Token representations $H \in \mathbb{R}^{N \times d}$ are generated via fine-tuned `xlm-roberta-base`.
 2. **Switch Distance Formulation:** For each token at position $i$, the signed distance to the nearest language switch point is computed:
-   $$d_{\text{switch}}(i) \in [-16, +16]$$
-3. **Switch Positional Embeddings:** $E_{\text{switch}} = \text{Embedding}(d_{\text{switch}}(i)) \in \mathbb{R}^{N \times d}$.
+   $$d_{\mathrm{switch}}(i) \in [-16, +16]$$
+3. **Switch Positional Embeddings:** $E_{\mathrm{switch}} = \mathrm{Embedding}(d_{\mathrm{switch}}(i)) \in \mathbb{R}^{N \times d}$.
 4. **SP-GSA Dynamic Soft Gating:**
-   $$\mathbf{G}_{\text{switch}} = \sigma\left(\mathbf{W}_g [H \mathbin{\Vert} E_{\text{switch}}] + \mathbf{b}_g\right)$$
-   $$\hat{H} = \text{LayerNorm}\left(\mathbf{G}_{\text{switch}} \odot H + H\right)$$
+   $$\mathbf{G}_{\mathrm{switch}} = \sigma\left(\mathbf{W}_g [H \mathbin{\Vert} E_{\mathrm{switch}}] + \mathbf{b}_g\right)$$
+   $$\hat{H} = \mathrm{LayerNorm}\left(\mathbf{G}_{\mathrm{switch}} \odot H + H\right)$$
    *Impact:* Suppresses cross-lingual attention bleeding while preserving syntactic coherence across Hindi-English boundaries.
 
 ---
@@ -135,9 +135,9 @@ flowchart TD
 ### Phase 3: Dual-Branch Decomposition
 
 #### Branch A: Biaffine Span Boundary Extractor (2D Bilinear Grid)
-- Aspect and opinion spans are identified using dual MLPs ($\text{MLP}_{\text{start}}, \text{MLP}_{\text{end}}$) and a 2D bilinear scoring grid:
-  $$S(i, j) = h_i^{\top} \mathbf{W}_{\text{biaffine}} h_j + \mathbf{U} [h_i \mathbin{\Vert} h_j] + b$$
-- Span representations $h_{\text{aspect}}$ and $h_{\text{opinion}}$ are pooled via self-attentive span reduction.
+- Aspect and opinion spans are identified using dual MLPs ($\mathrm{MLP}_{\mathrm{start}}, \mathrm{MLP}_{\mathrm{end}}$) and a 2D bilinear scoring grid:
+  $$S(i, j) = h_i^{\top} \mathbf{W}_{\mathrm{biaffine}} h_j + \mathbf{U} [h_i \mathbin{\Vert} h_j] + b$$
+- Span representations $h_{\mathrm{aspect}}$ and $h_{\mathrm{opinion}}$ are pooled via self-attentive span reduction.
 
 #### Branch B: Heterogeneous Neuro-Symbolic Graph (H-NSG) & RGAT
 A multi-relational graph $\mathcal{G} = (\mathcal{V}, \mathcal{E}, \mathcal{R})$ is dynamically constructed over sentence tokens with **4 distinct edge types**:
@@ -147,19 +147,19 @@ A multi-relational graph $\mathcal{G} = (\mathcal{V}, \mathcal{E}, \mathcal{R})$
 4. $\mathcal{R}_4$ **Aspect-Opinion Alignment:** Direct cross-span association edges connecting candidate aspect and opinion terms.
 
 - **Symbolic Prior Anchor Injection:** Each node feature is initialized by concatenating contextual embeddings with symbolic NRC-VAD psycholinguistic priors:
-  $$x_i^{(0)} = [\hat{h}_i \mathbin{\Vert} e_{\text{LID}}(i) \mathbin{\Vert} v_i^{\text{NRC}} \mathbin{\Vert} a_i^{\text{NRC}} \mathbin{\Vert} d_i^{\text{NRC}}]$$
+  $$x_i^{(0)} = [\hat{h}_i \mathbin{\Vert} e_{\mathrm{LID}}(i) \mathbin{\Vert} v_i^{\mathrm{NRC}} \mathbin{\Vert} a_i^{\mathrm{NRC}} \mathbin{\Vert} d_i^{\mathrm{NRC}}]$$
 - **Relational Graph Attention (RGAT) Message Passing:**
   $$h_i^{(l+1)} = \sigma \left( \sum_{r \in \mathcal{R}} \sum_{j \in \mathcal{N}_i^r} \alpha_{ij}^r \mathbf{W}_r^{(l)} h_j^{(l)} \right)$$
-  $$\alpha_{ij}^r = \frac{\exp\left(\text{LeakyReLU}\left(\mathbf{a}_r^{\top} [\mathbf{W}_r h_i \mathbin{\Vert} \mathbf{W}_r h_j]\right)\right)}{\sum_{k \in \mathcal{N}_i^r} \exp\left(\text{LeakyReLU}\left(\mathbf{a}_r^{\top} [\mathbf{W}_r h_i \mathbin{\Vert} \mathbf{W}_r h_k]\right)\right)}$$
+  $$\alpha_{ij}^r = \frac{\exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}_r^{\top} [\mathbf{W}_r h_i \mathbin{\Vert} \mathbf{W}_r h_j]\right)\right)}{\sum_{k \in \mathcal{N}_i^r} \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}_r^{\top} [\mathbf{W}_r h_i \mathbin{\Vert} \mathbf{W}_r h_k]\right)\right)}$$
 
 ---
 
 ### Phase 4: Aspect-Guided Mutual Cross-Attention Fusion
 To ground graph structural knowledge directly into the aspect-opinion pair, an aspect-guided cross-attention layer performs mutual alignment:
-$$Q = \mathbf{W}_Q h_{\text{aspect}}, \quad K = \mathbf{W}_K H_{\text{RGAT}}, \quad V = \mathbf{W}_V H_{\text{RGAT}}$$
-$$h_{\text{graph\_context}} = \text{Softmax}\left(\frac{Q K^{\top}}{\sqrt{d}}\right) V$$
+$$Q = \mathbf{W}_Q h_{\mathrm{aspect}}, \quad K = \mathbf{W}_K H_{\mathrm{RGAT}}, \quad V = \mathbf{W}_V H_{\mathrm{RGAT}}$$
+$$h_{\mathrm{graph}} = \mathrm{Softmax}\left(\frac{Q K^{\top}}{\sqrt{d}}\right) V$$
 The final fused latent representation $Z \in \mathbb{R}^{3d}$ combines all three dimensions:
-$$Z = [h_{\text{aspect}} \mathbin{\Vert} h_{\text{opinion}} \mathbin{\Vert} h_{\text{graph\_context}}]$$
+$$Z = [h_{\mathrm{aspect}} \mathbin{\Vert} h_{\mathrm{opinion}} \mathbin{\Vert} h_{\mathrm{graph}}]$$
 
 ---
 
