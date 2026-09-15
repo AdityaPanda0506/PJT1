@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch large checkpoint (we deploy the optimized 74MB best_nssg_dimnet.pkl)
+*.pt
+checkpoints/best_nssg_dimnet.pt
+checkpoints/custom_weights.pkl
+
+# Raw large benchmarking datasets
+Stage1_Hinglish_Identification_Benchmark.csv
+all.txt
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Streamlit local credentials
+.streamlit/
+
+# OS and IDE files
+.DS_Store
+.idea/
+.vscode/
+*.swp
